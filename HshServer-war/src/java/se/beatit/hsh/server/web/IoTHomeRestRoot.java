@@ -223,47 +223,76 @@ public class IoTHomeRestRoot {
         return wh + "wh added to " + home + " electicity usage";
     }
     
-    @GET
+    @POST
     @Produces(MediaType.TEXT_PLAIN)
-    @Path("/{home}/{device}/electricityuse")
-    public String getUsage(@PathParam("home") String home, @PathParam("device") String device) {
-        log(home + " gets electricity usage for " + device + ".");
+    @Path("/{home}/{location}/temperature/{temp}")
+    public String addTemperature(@PathParam("home") String home, @PathParam("location") String location, @PathParam("temp") Float temperature) {
+        log(home + " adds temperature " + temperature + " to location " + location);
         
-        IoTHome ioTHome;
         try {
-            ioTHome = ioTHomeEjb.getHome(home);
+            ioTHomeEjb.addTemperature(home, location, temperature);
         } catch(HomeNotFountException e) {
             return "Home " + home + " not found.";
         }
         
-        if(ioTHome.getDevice(device) == null) {
-            return "Device " + device + " not found.";
-        }  
-        //return String.valueOf(ioTHome.getDevice(device).getUsage());  
-        return "ww";
+        return "Temp " + temperature + " added to " + home + " location " + location;
     }
     
     
-    @POST
-    @Produces(MediaType.TEXT_PLAIN)
-    @Path("/{home}/{device}/electricityuse/{usage}")
-    public String setUsage(@PathParam("home") String home, @PathParam("device") String device, @PathParam("usage") Long usage) {
-        log("Home " + home + " is setting usage " + usage + " for device " + device);
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    @Path("/{home}/{location}/temperature/{from}/{to}/{resolution}")
+    public String getHistoricTemperature(@PathParam("home") String home, @PathParam("location") String location, @PathParam("from") String from, @PathParam("to") String to, @PathParam("resolution") String resolution) {
+        log(home + " gets temperature for location " + location + " from "+ from + " to " + to + " with resolution " + resolution);
+        long reqStart = System.currentTimeMillis();
         
-        IoTHome ioTHome;
         try {
-            ioTHome = ioTHomeEjb.getHome(home);
+            System.out.println("From is " + from + " to is " + to);
+            
+            Date fromDate = urlDateFormatter.parse(from);
+            Date toDate = urlDateFormatter.parse(to);
+            
+            System.out.println("Fromdate is " + fromDate + " todate is " + toDate);
+            
+            int calendarResolution = Calendar.YEAR;
+            
+            if(resolution.equals("m")) {
+                calendarResolution = Calendar.MINUTE;
+            } else if(resolution.equals("h")) {
+                calendarResolution = Calendar.HOUR_OF_DAY;
+            } else if(resolution.equals("D")) {
+                calendarResolution = Calendar.DAY_OF_MONTH;
+            } else if(resolution.equals("M")) {
+                calendarResolution = Calendar.MONTH;
+            } else if(resolution.equals("y")) {
+                calendarResolution = Calendar.YEAR;
+            } else {
+                throw new ParseException("Invalid resolution", 1);
+            }
+            
+            List<Float> stats = ioTHomeEjb.getTemperatureStat(home, location, fromDate, toDate, calendarResolution);
+            
+            StringBuilder result = new StringBuilder("{\"temperature\":[");
+            Iterator<Float> statIterator = stats.iterator();
+            
+            while (statIterator.hasNext()) {
+                result.append(statIterator.next());
+                if(statIterator.hasNext()) {
+                    result.append(", ");
+                }
+            }
+            result.append("]}");
+            
+            long timeToExec = System.currentTimeMillis() - reqStart;
+            log("Temperature request handled in " + timeToExec + "ms");
+            return result.toString();
         } catch(HomeNotFountException e) {
-            ioTHome = ioTHomeEjb.createHome(home);
+            return "Home " + home + " not found.";
+        } catch (ParseException pe) {
+            return "From and to date must be formatted: yyyyMMddHHmm resolution can be y, M, D, h or m";
         }
-        
-        if(ioTHome.getDevice(device) == null) {
-            //ioTHome.addDevice(new IoTDevice(device));
-        }
-        
-        //ioTHome.getDevice(device).setUsage(usage);
-        return "OK usage updated";
     }
+
     
     @POST
     @Produces(MediaType.TEXT_PLAIN)
@@ -321,7 +350,7 @@ public class IoTHomeRestRoot {
     private IoTHomeEJB lookupIoTHomeEJBBean() {
         try {
             javax.naming.Context c = new InitialContext();
-            return (IoTHomeEJB) c.lookup("java:global/IoTHomeServer/IoTHomeServer-ejb/IoTHomeEJB!com.beatit.se.jo.server.ejb.IoTHomeEJB");
+            return (IoTHomeEJB) c.lookup("java:global/HshServer/HshServer-ejb/IoTHomeEJB!se.beatit.hsh.server.ejb.IoTHomeEJB");
         } catch (NamingException ne) {
             Logger.getLogger(getClass().getName()).log(Level.SEVERE, "exception caught", ne);
             throw new RuntimeException(ne);

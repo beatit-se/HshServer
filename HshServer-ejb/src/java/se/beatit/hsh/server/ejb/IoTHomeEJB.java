@@ -17,6 +17,7 @@ import java.util.TimeZone;
 import javax.ejb.Stateless;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
+import se.beatit.hsh.server.ejb.entities.IoTTemperature;
 
 /**
  *
@@ -141,6 +142,35 @@ public class IoTHomeEJB {
         em.persist(usage);
     }
     
+    public void addTemperature(String home, String location, float temp) {
+        IoTHome ioTHome = getHome(home);
+        
+        Calendar cal = Calendar.getInstance(TIME_ZONE);
+        
+        IoTTemperature temperature = new IoTTemperature();
+        temperature.setIotHome(ioTHome);
+        temperature.setTemperature(temp);
+        temperature.setLocation(location);
+        
+        temperature.settYear(cal.get(Calendar.YEAR));
+        temperature.settMonth(cal.get(Calendar.MONTH));
+        temperature.settDay(cal.get(Calendar.DAY_OF_MONTH));
+        temperature.settHour(cal.get(Calendar.HOUR_OF_DAY));
+        temperature.settMinute(cal.get(Calendar.MINUTE));
+        
+        em.persist(temperature);
+    }
+    
+    public List<Float> getTemperatureStat(String home, String location, Date start, Date stop, int rollFiealdResolution) {  
+        Calendar startCalendar = Calendar.getInstance(TIME_ZONE);
+        startCalendar.setTime(start);
+        
+        Calendar stopCalendar = Calendar.getInstance(TIME_ZONE);
+        stopCalendar.setTime(stop);
+
+        return getDao().getTemperature(em, home, location, startCalendar, stopCalendar, rollFiealdResolution);
+    }
+    
     
     
     private IoTHomeDAO getDao() {
@@ -149,6 +179,4 @@ public class IoTHomeEJB {
         }
         return ioTHomeDao;
     }
-
-
 }

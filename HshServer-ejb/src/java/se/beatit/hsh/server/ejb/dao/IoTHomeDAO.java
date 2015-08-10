@@ -129,5 +129,84 @@ public class IoTHomeDAO {
         }      
         return result;
     }
+    
+    public List<Float> getTemperature(EntityManager em, String home, String location, Calendar start, Calendar stop, int calendarRollField) {
+        IoTHome ioTHome = getHome(em, home);
+        List<Float> result = new ArrayList<Float>();
+        
+        StringBuilder queryString = new StringBuilder();
+        queryString.append("SELECT avg(u.temperature) from IoTTemperature u");
+        queryString.append(" WHERE u.iotHome = ?1");
+        queryString.append(" AND u.location = ?2");
+        queryString.append(" AND u.tYear = ?3");
+        
+        if(rollLessThanYear(calendarRollField)) {
+            queryString.append(" AND u.tMonth = ?4");
+        }
+        if(rollLessThanMonth(calendarRollField)) {
+            queryString.append(" AND u.tDay = ?5");
+        }
+        if(rollLessThanDay(calendarRollField)) {
+            queryString.append(" AND u.tHour = ?6");
+        }
+        if(rollLessThanHour(calendarRollField)) {
+            queryString.append(" AND u.tMinute = ?7");
+        }
+        
+        
+        while(start.before(stop)) {
+            TypedQuery<Double> q = em.createQuery(queryString.toString(), Double.class);
+            q.setParameter(1, ioTHome);
+            q.setParameter(2, location);
+            q.setParameter(3, start.get(Calendar.YEAR));
+            
+            if(rollLessThanYear(calendarRollField)) {
+                q.setParameter(4, start.get(Calendar.MONTH));
+            }
+            if(rollLessThanMonth(calendarRollField)) {
+                q.setParameter(5, start.get(Calendar.DAY_OF_MONTH));
+            }
+            if(rollLessThanDay(calendarRollField)){
+                q.setParameter(6, start.get(Calendar.HOUR_OF_DAY));
+            }
+            if(rollLessThanHour(calendarRollField)){
+                q.setParameter(7, start.get(Calendar.MINUTE));
+            }
+            
+            Double sum = q.getSingleResult();
+            
+            if(sum != null) {
+                result.add(sum.floatValue());    
+            } else {
+                result.add((float)0);
+            }
+            
+            start.add(calendarRollField, 1);
+        }      
+        return result;
+    }
+    
+    private boolean rollLessThanYear(int calendarRollField) {
+        return calendarRollField == Calendar.MINUTE || 
+                calendarRollField == Calendar.HOUR_OF_DAY || 
+                calendarRollField == Calendar.DAY_OF_MONTH || 
+                calendarRollField == Calendar.MONTH;
+    }
+    
+    private boolean rollLessThanMonth(int calendarRollField) {
+        return calendarRollField == Calendar.MINUTE || 
+                calendarRollField == Calendar.HOUR_OF_DAY || 
+                calendarRollField == Calendar.DAY_OF_MONTH;
+    }
+    
+    private boolean rollLessThanDay(int calendarRollField) {
+        return calendarRollField == Calendar.MINUTE || 
+                calendarRollField == Calendar.HOUR_OF_DAY;
+    }
+    
+    private boolean rollLessThanHour(int calendarRollField) {
+        return calendarRollField == Calendar.MINUTE;
+    }
+    
         
 }

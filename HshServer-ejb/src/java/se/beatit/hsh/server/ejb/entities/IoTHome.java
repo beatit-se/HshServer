@@ -35,6 +35,9 @@ public class IoTHome implements Serializable {
     @OneToMany(mappedBy = "iotHome")
     private List<IoTMinuteUsage> ioTMinuteUsages;
     
+    @OneToMany(mappedBy = "iotHome")
+    private List<IoTTemperature> ioTTemperature;
+    
     public IoTHome() {
     }
     
